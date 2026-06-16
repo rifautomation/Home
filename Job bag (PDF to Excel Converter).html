@@ -434,7 +434,7 @@
 
         downloadCurrentBtn.addEventListener('click', () => {
             if (activeProcessedRows.length === 0) return;
-            let currentRows = [["SIZE / SPECIFICATION", "QTY"]].concat(activeProcessedRows);
+            let currentRows = [["SIZE", "QTY"]].concat(activeProcessedRows);
             const worksheet = XLSX.utils.aoa_to_sheet(currentRows);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Selected Export");
