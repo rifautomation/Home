@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job bag (PDF to Excel Converter)</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- PDF.js library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <!-- SheetJS (XLSX) library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        /* টেনে নেওয়ার সময় ভিজ্যুয়াল ইফেক্ট এর জন্য */
+        .dragging {
+            opacity: 0.5;
+            background-color: #eff6ff;
+            border-color: #3b82f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-6">
+
+    <div class="bg-white p-8 rounded-lg shadow-md max-w-5xl w-full text-center">
+        <!-- Title -->
+        <h1 class="text-2xl font-bold text-gray-800 mb-2">Job bag (PDF to Excel Converter)</h1>
+        <p class="text-sm text-gray-500 mb-6">Queue files, Process to View/Download immediately, and Save Permanently</p>
+        
+        <!-- File Input Area / Drop Zone -->
+        <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50 hover:bg-gray-100 hover:border-blue-400 transition cursor-pointer relative">
+            <input type="file" id="pdf-file" accept=".pdf" multiple class="hidden" />
+            <label for="pdf-file" class="cursor-pointer block">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <span class="mt-2 block text-sm font-medium text-gray-600">Drag & Drop PDF files here or <span class="text-blue-600 underline">Browse</span></span>
+            </label>
+        </div>
+
+        <!-- Main Workspace Layout -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 text-left">
+            
+            <!-- Left Side: Queue & Data Summary -->
+            <div class="border border-gray-200 rounded-lg p-4 bg-gray-50/50 flex flex-col">
+                <h3 class="text-sm font-semibold text-gray-700 mb-2">1. Queue / Selected Files (Drag items up/down to reorder):</h3>
+                <ul id="file-list" class="max-h-48 overflow-y-auto border border-gray-200 rounded-md bg-white p-2 text-sm text-gray-600 space-y-2 mb-4">
+                    <li class="text-gray-400 italic text-center py-2" id="empty-list-msg">No files added yet</li>
+                </ul>
+
+                <div class="flex justify-between items-center mb-2">
+                    <h3 id="summary-title" class="text-sm font-bold text-blue-900">Processed Data Summary:</h3>
+                    <button id="download-current-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-1.5 rounded shadow-sm transition disabled:bg-gray-300 disabled:cursor-not-allowed" disabled>
+                        📥 Download Current Excel
+                    </button>
+                </div>
+                <div class="flex-1 max-h-44 overflow-y-auto border border-gray-200 bg-white rounded-md p-2">
+                    <table class="w-full text-xs text-left">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-600 uppercase text-[10px]">
+                                <th class="p-1">Size / Specification</th>
+                                <th class="p-1 text-right">Qty</th>
+                            </tr>
+                        </thead>
+                        <tbody id="preview-table-body" class="divide-y divide-gray-100 text-gray-700">
+                            <tr>
+                                <td colspan="2" class="p-2 text-center text-gray-400 italic">No active data loaded. Click a saved item or process new files.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Right Side: Permanent Saved Master List (Database Linked) -->
+            <div class="border border-amber-200 bg-amber-50/30 rounded-lg p-4 flex flex-col">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-sm font-bold text-amber-900">2. Saved Master Logs (Names Only):</h3>
+                    <span id="saved-counter" class="bg-amber-200 text-amber-800 text-xs px-2 py-0.5 rounded-full font-bold">0 Names</span>
+                </div>
+                <div class="flex-1 max-h-72 overflow-y-auto border border-amber-200 bg-white rounded-md p-2">
+                    <table class="w-full text-xs text-left">
+                        <thead>
+                            <tr class="bg-amber-100 text-amber-800 uppercase text-[10px]">
+                                <th class="p-2">LOG / GROUP NAME</th>
+                                <th class="p-2 text-right">ROWS COUNT</th>
+                            </tr>
+                        </thead>
+                        <tbody id="saved-table-body" class="divide-y divide-gray-100 text-gray-700">
+                            <tr>
+                                <td colspan="2" class="p-2 text-center text-gray-400 italic">No custom names saved yet</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Control Buttons -->
+        <div class="grid grid-cols-4 gap-4 mt-6">
+            <button id="clear-btn" class="bg-red-100 hover:bg-red-200 text-red-700 font-semibold py-3 px-2 rounded-lg transition text-sm disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                Reset Queue
+            </button>
+            
+            <button id="process-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition text-base shadow-sm disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+                Process Data
+            </button>
+
+            <button id="save-btn" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-4 rounded-lg transition text-base shadow-sm disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+                Save to Master List
+            </button>
+            
+            <button id="download-btn" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-2 rounded-lg transition text-sm disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+                Download Master Excel
+            </button>
+        </div>
+
+        <!-- Status Bar -->
+        <p id="status" class="mt-4 text-sm font-medium text-gray-600"></p>
+    </div>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+        const fileInput = document.getElementById('pdf-file');
+        const dropZone = document.getElementById('drop-zone');
+        const fileListContainer = document.getElementById('file-list');
+        const processBtn = document.getElementById('process-btn');
+        const saveBtn = document.getElementById('save-btn');
+        const downloadBtn = document.getElementById('download-btn');
+        const downloadCurrentBtn = document.getElementById('download-current-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const statusText = document.getElementById('status');
+        
+        const previewTableBody = document.getElementById('preview-table-body');
+        const savedTableBody = document.getElementById('saved-table-body');
+        const savedCounter = document.getElementById('saved-counter');
+        const summaryTitle = document.getElementById('summary-title');
+
+        let fileMap = {};
+        let fileCounter = 0;
+        let activeProcessedRows = []; 
+        let databaseLogs = {}; 
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedData = localStorage.getItem('jobBagMasterDatabase');
+            if(savedData) {
+                try {
+                    databaseLogs = JSON.parse(savedData);
+                } catch(e) {
+                    databaseLogs = {};
+                }
+            }
+            renderSavedNamesList();
+            updateUIState();
+        });
+
+        // উইন্ডো লেভেলে ডিফল্ট ড্রপ ব্লক করা
+        window.addEventListener('dragover', (e) => e.preventDefault(), false);
+        window.addEventListener('drop', (e) => e.preventDefault(), false);
+
+        // ড্রপ জোন ইভেন্ট (কম্পিউটার থেকে ড্রপ করা)
+        dropZone.addEventListener('dragenter', (e) => { e.preventDefault(); dropZone.classList.add('border-blue-500', 'bg-blue-50'); });
+        dropZone.addEventListener('dragover', (e) => e.preventDefault());
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-blue-500', 'bg-blue-50'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+            const dt = e.dataTransfer;
+            if (dt && dt.files.length > 0) {
+                const pdfFiles = Array.from(dt.files).filter(f => f.type === "application/pdf" || f.name.toLowerCase().endsWith('.pdf'));
+                handleFiles(pdfFiles);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(Array.from(e.target.files));
+        });
+
+        // ফাইল হ্যান্ডল করা এবং লিস্ট আইটেমগুলোকে draggable করা (FIXED SORTABLE)
+        function handleFiles(files) {
+            if (files.length > 0) {
+                const emptyMsg = document.getElementById('empty-list-msg');
+                if (emptyMsg) emptyMsg.remove();
+                
+                files.forEach(file => {
+                    fileCounter++;
+                    const fileId = `file-${fileCounter}`;
+                    fileMap[fileId] = file; 
+                    
+                    const li = document.createElement('li');
+                    li.setAttribute('data-id', fileId); 
+                    li.setAttribute('draggable', 'true'); // HTML5 ড্র্যাগ এনাবল করা হলো
+                    li.className = "flex items-center bg-white p-2 rounded shadow-sm border border-gray-200 transition cursor-move select-none hover:border-blue-300";
+                    li.innerHTML = `
+                        <span class="text-gray-400 mr-2 font-mono text-xs select-none">☰</span>
+                        <span class="truncate font-medium text-gray-700 flex-1">${file.name}</span>
+                        <span class="text-xs text-gray-400 mr-2">(${(file.size / 1024).toFixed(1)} KB)</span>
+                        <button class="remove-file-btn text-red-500 hover:text-red-700 font-bold px-2 text-base transition">×</button>
+                    `;
+                    
+                    // ইন-লিস্ট ড্র্যাগ অ্যান্ড ড্রপ ইভেন্ট যুক্ত করা (Sorting Logic)
+                    li.addEventListener('dragstart', () => {
+                        li.classList.add('dragging');
+                    });
+
+                    li.addEventListener('dragend', () => {
+                        li.classList.remove('dragging');
+                    });
+
+                    li.querySelector('.remove-file-btn').addEventListener('click', (e) => {
+                        e.stopPropagation(); li.remove();
+                        delete fileMap[fileId];
+                        if (fileListContainer.querySelectorAll('li').length === 0) {
+                            fileListContainer.innerHTML = '<li class="text-gray-400 italic text-center py-2" id="empty-list-msg">No files added yet</li>';
+                        }
+                        updateUIState();
+                    });
+
+                    fileListContainer.appendChild(li);
+                });
+                fileInput.value = ""; 
+                updateUIState();
+            }
+        }
+
+        // লিস্টের পজিশন ডিটেক্ট করার জন্য Dragover লজিক
+        fileListContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const draggingItem = document.querySelector('.dragging');
+            if(!draggingItem) return;
+            
+            // মাউস পজিশন অনুযায়ী ঠিক কোন এলিমেন্টের নিচে বা উপরে ড্রপ করা হচ্ছে তা বের করা
+            const siblings = Array.from(fileListContainer.querySelectorAll('li:not(.dragging)'));
+            let nextSibling = siblings.find(sibling => {
+                const box = sibling.getBoundingClientRect();
+                return e.clientY <= box.top + box.height / 2;
+            });
+            
+            if (nextSibling) {
+                fileListContainer.insertBefore(draggingItem, nextSibling);
+            } else {
+                fileListContainer.appendChild(draggingItem);
+            }
+        });
+
+        function updateUIState() {
+            const queueItems = fileListContainer.querySelectorAll('li:not(#empty-list-msg)');
+            const dbKeys = Object.keys(databaseLogs);
+
+            processBtn.disabled = queueItems.length === 0;
+            saveBtn.disabled = activeProcessedRows.length === 0;
+            downloadCurrentBtn.disabled = activeProcessedRows.length === 0;
+            downloadBtn.disabled = dbKeys.length === 0;
+            clearBtn.disabled = queueItems.length === 0 && activeProcessedRows.length === 0;
+
+            savedCounter.textContent = `${dbKeys.length} Names`;
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('jobBagMasterDatabase', JSON.stringify(databaseLogs));
+            updateUIState();
+        }
+
+        function renderSavedNamesList() {
+            const keys = Object.keys(databaseLogs);
+            if(keys.length === 0) {
+                savedTableBody.innerHTML = '<tr><td colspan="2" class="p-2 text-center text-gray-400 italic">No custom names saved yet</td></tr>';
+                return;
+            }
+
+            savedTableBody.innerHTML = "";
+            keys.forEach(name => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-amber-100/30 transition cursor-pointer";
+                tr.innerHTML = `
+                    <td class="p-2 font-bold text-gray-800 select-none bg-amber-50/50 rounded-l-md">${name}</td>
+                    <td class="p-2 text-right bg-amber-50/50 rounded-r-md">
+                        <span class="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full font-semibold mr-2">${databaseLogs[name].length} lines</span>
+                        <button class="delete-log-btn text-red-500 hover:text-red-700 font-bold px-1 text-sm transition">🗑️</button>
+                    </td>
+                `;
+                
+                tr.addEventListener('click', (e) => {
+                    if(e.target.classList.contains('delete-log-btn')) return;
+                    activeProcessedRows = [...databaseLogs[name]];
+                    summaryTitle.textContent = `Viewing Log: ${name}`;
+                    
+                    previewTableBody.innerHTML = "";
+                    activeProcessedRows.forEach(row => {
+                        const ptr = document.createElement('tr');
+                        ptr.innerHTML = `<td class="p-1 font-mono text-gray-700 truncate">${row[0]}</td><td class="p-1 text-right font-bold text-gray-900">${row[1]}</td>`;
+                        previewTableBody.appendChild(ptr);
+                    });
+                    updateUIState();
+                });
+
+                tr.querySelector('.delete-log-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if(confirm(`Delete "${name}" from database?`)) {
+                        delete databaseLogs[name];
+                        saveToLocalStorage();
+                        renderSavedNamesList();
+                        activeProcessedRows = [];
+                        previewTableBody.innerHTML = '<tr><td colspan="2" class="p-2 text-center text-gray-400 italic">No active data loaded.</td></tr>';
+                    }
+                });
+                savedTableBody.appendChild(tr);
+            });
+        }
+
+        clearBtn.addEventListener('click', () => {
+            fileMap = {};
+            activeProcessedRows = [];
+            fileListContainer.innerHTML = '<li class="text-gray-400 italic text-center py-2" id="empty-list-msg">No files added yet</li>';
+            previewTableBody.innerHTML = '<tr><td colspan="2" class="p-2 text-center text-gray-400 italic">No active data loaded.</td></tr>';
+            summaryTitle.textContent = "Processed Data Summary:";
+            updateUIState();
+        });
+
+        // PARSING ENGINE
+        async function parsePDF(file) {
+            return new Promise((resolve, reject) => {
+                const fileReader = new FileReader();
+                fileReader.onload = async function () {
+                    try {
+                        const typedarray = new Uint8Array(this.result);
+                        const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                        let styleNumber = "UNKNOWN_STYLE";
+                        let extractedData = [];
+
+                        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                            const page = await pdf.getPage(pageNum);
+                            const textContent = await page.getTextContent();
+                            const pageItems = textContent.items;
+
+                            for (let i = 0; i < pageItems.length; i++) {
+                                let itemStr = pageItems[i].str.trim();
+                                if (itemStr.includes("Style Number")) {
+                                    for(let j = 1; j <= 3; j++) {
+                                        if(pageItems[i+j] && pageItems[i+j].str.trim() !== "") {
+                                            styleNumber = pageItems[i+j].str.replace(/["\r\n]/g, '').trim();
+                                            break;
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
+
+                            let rowsMap = {};
+                            pageItems.forEach(item => {
+                                let y = Math.round(item.transform[5]);
+                                let text = item.str.replace(/["\r\n]/g, '').trim();
+                                if (text === "" || text.startsWith("DSGN2325")) return;
+
+                                let foundY = Object.keys(rowsMap).find(existingY => Math.abs(existingY - y) <= 7);
+                                if (foundY) rowsMap[foundY].push({ x: item.transform[4], text: text });
+                                else rowsMap[y] = [{ x: item.transform[4], text: text }];
+                            });
+
+                            let sortedY = Object.keys(rowsMap).sort((a, b) => b - a);
+                            sortedY.forEach(y => {
+                                let rowItems = rowsMap[y].sort((a, b) => a.x - b.x).filter(item => !item.text.includes("DSGN2325"));
+                                if (rowItems.length >= 3) {
+                                    if (/^\d+$/.test(rowItems[0].text) && rowItems.length > 3) rowItems.shift(); 
+                                    if(rowItems.length >= 3) {
+                                        let size = rowItems[0].text.toUpperCase();
+                                        let color = rowItems[1].text;
+                                        let qtyStr = rowItems[2].text.replace(/,/g, '').trim();
+
+                                        if (size.includes("SIZE") || color.includes("COLOR") || size.includes("STYLE") || size.includes("SERIAL") || size.includes("JOB BAG") || size.startsWith("TOTAL")) return;
+                                        if (qtyStr.toLowerCase().includes("total")) {
+                                            let match = qtyStr.match(/^(\d+)/);
+                                            if (match) qtyStr = match[1]; else return;
+                                        }
+                                        if (/^\d+$/.test(qtyStr)) {
+                                            extractedData.push([`${styleNumber} - ${color} - ${size}`, parseInt(qtyStr)]);
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                        resolve(extractedData);
+                    } catch (error) { reject(error); }
+                };
+                fileReader.readAsArrayBuffer(file);
+            });
+        }
+
+        // ফাইল প্রসেস করার বাটন (যে সিরিয়ালে সাজানো আছে ঠিক সেই সিরিয়ালে ডেটা রিড হবে)
+        processBtn.addEventListener('click', async () => {
+            const currentItems = fileListContainer.querySelectorAll('li:not(#empty-list-msg)');
+            if (currentItems.length === 0) return;
+
+            processBtn.disabled = true;
+            statusText.textContent = "Parsing documents sequentially...";
+            statusText.className = "mt-4 text-sm font-medium text-blue-600";
+
+            try {
+                activeProcessedRows = []; 
+                summaryTitle.textContent = "Processed Data Summary:";
+
+                // লুপটি এখন স্ক্রিনে যেভাবে ফাইলগুলো সাজানো আছে (DOM Order) ঠিক সেই অনুযায়ী ঘুরবে
+                for (let i = 0; i < currentItems.length; i++) {
+                    const fileId = currentItems[i].getAttribute('data-id');
+                    const file = fileMap[fileId]; 
+                    if (file) {
+                        const dataRows = await parsePDF(file);
+                        activeProcessedRows = activeProcessedRows.concat(dataRows);
+                    }
+                }
+
+                if(activeProcessedRows.length > 0) {
+                    previewTableBody.innerHTML = "";
+                    activeProcessedRows.forEach(row => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `<td class="p-1 font-mono text-gray-700 truncate">${row[0]}</td><td class="p-1 text-right font-bold text-gray-900">${row[1]}</td>`;
+                        previewTableBody.appendChild(tr);
+                    });
+                    statusText.textContent = "Process complete! Sorted data loaded successfully.";
+                    statusText.className = "mt-4 text-sm font-medium text-green-600";
+                } else {
+                    previewTableBody.innerHTML = '<tr><td colspan="2" class="p-2 text-center text-red-500 italic">No structured data found.</td></tr>';
+                }
+
+                fileMap = {};
+                fileListContainer.innerHTML = '<li class="text-gray-400 italic text-center py-2" id="empty-list-msg">Queue processed!</li>';
+
+            } catch (error) {
+                console.error(error);
+                statusText.textContent = "Critical error reading PDF specifications.";
+            } finally {
+                updateUIState();
+            }
+        });
+
+        downloadCurrentBtn.addEventListener('click', () => {
+            if (activeProcessedRows.length === 0) return;
+            let currentRows = [["SIZE / SPECIFICATION", "QTY"]].concat(activeProcessedRows);
+            const worksheet = XLSX.utils.aoa_to_sheet(currentRows);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Selected Export");
+            XLSX.writeFile(workbook, "JobBag_Selected_Summary.xlsx");
+        });
+
+        saveBtn.addEventListener('click', () => {
+            if(activeProcessedRows.length === 0) return;
+            let customName = prompt("Enter a name to register this data log permanently:", "Job_Batch_" + (Object.keys(databaseLogs).length + 1));
+            if (customName === null) return; 
+            customName = customName.trim() === "" ? "Unnamed_Batch" : customName.trim();
+
+            databaseLogs[customName] = [...activeProcessedRows];
+            saveToLocalStorage();
+            renderSavedNamesList();
+
+            activeProcessedRows = [];
+            previewTableBody.innerHTML = '<tr><td colspan="2" class="p-2 text-center text-gray-400 italic">No active data loaded.</td></tr>';
+            summaryTitle.textContent = "Processed Data Summary:";
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            const keys = Object.keys(databaseLogs);
+            if (keys.length === 0) return;
+
+            const workbook = XLSX.utils.book_new();
+            keys.forEach(name => {
+                let sheetRows = [["SIZE / SPECIFICATION", "QTY"]];
+                databaseLogs[name].forEach(row => { sheetRows.push([row[0], row[1]]); });
+
+                const worksheet = XLSX.utils.aoa_to_sheet(sheetRows);
+                let safeSheetName = name.substring(0, 31).replace(/[\\"\?\*\/\[\]]/g, '');
+                XLSX.utils.book_append_sheet(workbook, worksheet, safeSheetName);
+            });
+
+            XLSX.writeFile(workbook, "JobBag_MultiSheet_Master_Report.xlsx");
+        });
+    </script>
+</body>
+</html>
