@@ -342,57 +342,55 @@ async function processExcelAutomation() {
         prodData.forEach(row => {
             if (row['Plate#']) {
                 const pNum = parseInt(row['Plate#'], 10);
-                if (!isNaN(pNum) && pNum > maxPlateNum) {
-                    maxPlateNum = pNum;
-                }
-                if (row['Plate Run'] && !isNaN(pNum)) {
-                    plateSummaryMap.set(pNum, parseInt(row['Plate Run'], 10));
+                if (!isNaN(pNum)) {
+                    if (pNum > maxPlateNum) {
+                        maxPlateNum = pNum;
+                    }
+                    if (row['Plate Run'] !== undefined && row['Plate Run'] !== "") {
+                        plateSummaryMap.set(pNum, parseInt(row['Plate Run'], 10));
+                    }
                 }
             }
         });
 
         const sortedPlates = Array.from(plateSummaryMap.keys()).sort((a, b) => a - b);
         const outputRows = [];
+        
+        // সাইজের সংখ্যা এবং প্লেটের সংখ্যা—দুটোর মধ্যে যেটি বড়, লুপ ততবার চলবে
+        const totalOutputRowsCount = Math.max(sizeOrder.length, sortedPlates.length);
 
-        sizeOrder.forEach((currentSize, index) => {
+        for (let i = 0; i < totalOutputRowsCount; i++) {
+            let currentSize = i < sizeOrder.length ? sizeOrder[i] : "";
             let rowObj = { "AI Filename": currentSize };
 
-            for (let i = 1; i <= maxPlateNum; i++) {
-                rowObj["Set " + i] = "";
+            // Dynamic Set Columns জেনারেট করা হচ্ছে সর্বোচ্চ প্লেট সংখ্যা অনুযায়ী
+            for (let s = 1; s <= maxPlateNum; s++) {
+                rowObj["Set " + s] = "";
             }
 
-            const matches = prodData.filter(pRow => pRow.SIZE && String(pRow.SIZE).trim() === currentSize);
-
-            matches.forEach(match => {
-                if (match['Plate#'] && match['Repeat']) {
-                    const pIdx = parseInt(match['Plate#'], 10);
-                    if (!isNaN(pIdx)) {
-                        rowObj["Set " + pIdx] = parseInt(match['Repeat'], 10);
+            // যদি সাইজ থাকে, তবে Ratio ফাইলের সাথে মিলিয়ে Set ভ্যালু বসানো হবে
+            if (currentSize !== "") {
+                const matches = prodData.filter(pRow => pRow.SIZE && String(pRow.SIZE).trim() === currentSize);
+                matches.forEach(match => {
+                    if (match['Plate#'] && match['Repeat']) {
+                        const pIdx = parseInt(match['Plate#'], 10);
+                        if (!isNaN(pIdx)) {
+                            rowObj["Set " + pIdx] = parseInt(match['Repeat'], 10);
+                        }
                     }
-                }
-            });
+                });
+            }
 
-            if (index < sortedPlates.length) {
-                rowObj["Imp. (Name)"] = parseInt(sortedPlates[index], 10);
-                rowObj["Imp. (Sheet)"] = parseInt(plateSummaryMap.get(sortedPlates[index]), 10);
+            // Imp. (Name) এবং Imp. (Sheet) সিরিয়ালি ডানের কলামেই বসবে, নিচে নামবে না
+            if (i < sortedPlates.length) {
+                rowObj["Imp. (Name)"] = parseInt(sortedPlates[i], 10);
+                rowObj["Imp. (Sheet)"] = parseInt(plateSummaryMap.get(sortedPlates[i]), 10);
             } else {
                 rowObj["Imp. (Name)"] = "";
                 rowObj["Imp. (Sheet)"] = "";
             }
 
             outputRows.push(rowObj);
-        });
-
-        if (sortedPlates.length > sizeOrder.length) {
-            for (let i = sizeOrder.length; i < sortedPlates.length; i++) {
-                let emptyRow = { "AI Filename": "" };
-                for (let s = 1; s <= maxPlateNum; s++) {
-                    emptyRow["Set " + s] = "";
-                }
-                emptyRow["Imp. (Name)"] = parseInt(sortedPlates[i], 10);
-                emptyRow["Imp. (Sheet)"] = parseInt(plateSummaryMap.get(sortedPlates[i]), 10);
-                outputRows.push(emptyRow);
-            }
         }
 
         currentActiveData = outputRows;
