@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Bulk Trimming Automation - Dashboard Panel</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f3f4f6;
+            margin: 0;
+            padding: 30px;
+        }
+        .main-box {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        h2 {
+            color: #2c3e50;
+            margin-top: 0;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #eaeded;
+        }
+        .file-drop {
+            border: 2px dashed #3498db;
+            background: #f7f9fa;
+            padding: 45px;
+            text-align: center;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #34495e;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .file-drop:hover {
+            background: #eef7fc;
+            border-color: #2980b9;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0 10px 0;
+        }
+        .dashboard-counter {
+            background-color: #ebf5fb;
+            border-left: 5px solid #3498db;
+            padding: 15px;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+        }
+        .matrix-summary {
+            background-color: #e8f8f5;
+            border-left: 5px solid #2ecc71;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .history-manager {
+            background-color: #fcf3cf;
+            border-left: 5px solid #f1c40f;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .counter-title {
+            font-size: 15px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 0 0 8px 0;
+        }
+        
+        .file-tags-container {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 5px;
+            max-height: 130px; 
+            overflow-y: auto;   
+            padding-right: 5px;
+        }
+
+        .file-row-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #ffffff;
+            padding: 6px 10px;
+            border: 1px solid #dcdde1;
+            border-radius: 4px;
+        }
+
+        .file-info-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-tag {
+            background: #34495e;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .action-btn-group {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .btn-table-sort {
+            background-color: #e67e22;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .btn-table-sort:hover {
+            background-color: #d35400;
+        }
+
+        .btn-table-clear {
+            background-color: #7f8c8d;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .btn-table-clear:hover {
+            background-color: #647072;
+        }
+
+        .btn-table-remove {
+            background-color: #c0392b;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .btn-table-remove:hover {
+            background-color: #a93226;
+        }
+
+        .history-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 5px;
+        }
+        select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-size: 13px;
+            width: 240px;
+        }
+        .ref-dropdown {
+            border: 2px solid #3498db !important;
+            font-weight: bold;
+            color: #2c3e50;
+            background-color: #fff;
+        }
+
+        .toggle-container {
+            display: none; 
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #27ae60;
+            background: #ffffff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px dashed #2ecc71;
+            width: fit-content;
+        }
+
+        .toggle-container input {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+        }
+
+        .status-area {
+            margin: 10px 0;
+            font-weight: bold;
+            color: #e67e22;
+            line-height: 1.6;
+        }
+        
+        .btn-download {
+            background-color: #2ecc71;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            display: none;
+        }
+        .btn-download:hover {
+            background-color: #27ae60;
+        }
+        .btn-save-session {
+            background-color: #9b59b6;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-load-session {
+            background-color: #2980b9;
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-delete-session {
+            background-color: #e74c3c;
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-central-sort {
+            background-color: #2c3e50;
+            color: white;
+            padding: 12px 22px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            display: none;
+        }
+        .btn-central-clear {
+            background-color: #7f8c8d;
+            color: white;
+            padding: 12px 22px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            display: none;
+        }
+        .btn-page-reset {
+            background-color: #7f8c8d;
+            color: white;
+            padding: 12px 22px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .table-view {
+            overflow-x: auto;
+            margin-top: 20px;
+            max-height: 550px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        th, td {
+            border: 1px solid #dcdde1;
+            padding: 8px 10px;
+            text-align: left;
+            white-space: nowrap;
+        }
+        th {
+            background-color: #2c3e50;
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        .blank-row-indicator {
+            background-color: #fadbd8 !important;
+            height: 30px;
+        }
+        .action-cell {
+            text-align: left;
+            min-width: 240px;
+            background-color: #ffffff !important;
+        }
+    </style>
+</head>
+<body>
+
+<div class="main-box">
+    <h2>Trimmings Bulk Converter (Reserved)</h2>
+    
+    <div class="file-drop" onclick="document.getElementById('fileLoader').click()">
+        Click here to select one or multiple Buyer Order Excel files (Multiple Files Append Supported)
+        <input type="file" id="fileLoader" accept=".xls,.xlsx,.csv,.xlsm" multiple style="display:none;">
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="dashboard-counter">
+            <div class="counter-title">📊 Active Files Summary: <span id="totalFilesCount" style="color: #2980b9;">0</span> file(s) loaded.</div>
+            <div id="fileTagsList" class="file-tags-container">
+                <span style="color: #7f8c8d; font-style: italic; font-size: 13px;">No files selected yet.</span>
+            </div>
+        </div>
+
+        <div class="matrix-summary">
+            <div class="counter-title">📈 Total Matrix Live Analytics:</div>
+            <div style="font-size: 13px; color: #2c3e50; line-height: 1.6;">
+                • Total Output Rows: <span id="lblTotalRows" style="font-weight: bold; color: #27ae60;">0</span><br>
+                • Sorted Order Rows: <span id="lblSortedRows" style="font-weight: bold; color: #2980b9;">0</span><br>
+                • Non-Sorted / Blank Rows: <span id="lblBlankRows" style="font-weight: bold; color: #c0392b;">0</span>
+            </div>
+        </div>
+        
+        <div class="history-manager">
+            <div class="counter-title">🎯 Accessory Ref & Session History:</div>
+            <div style="margin-bottom: 0px; display: flex; flex-direction: column; gap: 2px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 12px; font-weight: bold; color: #34495e;">Active Code:</span>
+                    <select id="accessoryRefSelector" class="ref-dropdown" onchange="handleReferenceChange()" style="width: 160px; padding: 5px;">
+                        <option value="HG-RE10419">HG-RE10419</option>
+                        <option value="HG-RE10406">HG-RE10406</option>
+                        <option value="HG-RE10405" selected>HG-RE10405</option>
+                        <option value="HG-RE10396">HG-RE10396</option>
+                        <option value="HG-RE10180">HG-RE10180</option>
+                        <option value="HG-RE10145">HG-RE10145</option>
+                    </select>
+                </div>
+                <div id="unitPriceToggleBox" class="toggle-container">
+                    <input type="checkbox" id="chkShowUnitPrice" onchange="compileFinalMatrixAndRefreshGrid()">
+                    <label for="chkShowUnitPrice">✔ Show Unit Price</label>
+                </div>
+            </div>
+            <div class="history-controls" style="margin-top: 8px;">
+                <select id="savedSessionsDropdown" style="width: 160px;">
+                    <option value="">-- Select Saved List --</option>
+                </select>
+                <button class="btn-load-session" onclick="loadSelectedSession()" style="padding: 6px 10px;">Open</button>
+                <button class="btn-delete-session" onclick="deleteSelectedSession()" style="padding: 6px 10px;">Delete</button>
+                <button class="btn-save-session" onclick="saveCurrentSession()" style="padding: 6px 10px;">💾 Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div style="margin: 15px 0; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+        <button id="centralSortBtn" class="btn-central-sort" onclick="executeCentralAllSort()">⚡ Sort All Files</button>
+        <button id="centralClearBtn" class="btn-central-clear" onclick="clearCentralAllSorts()">❌ Clear All Sorts</button>
+        <button id="downloadExcelBtn" class="btn-download" onclick="downloadCombinedExcel()">↓ Download All-in-One Excel</button>
+        <button id="pageResetBtn" class="btn-page-reset" onclick="resetEntirePage()">🔄 Reset Entire Page</button>
+        <p id="msg" class="status-area"></p>
+    </div>
+
+    <div class="table-view">
+        <table>
+            <thead><tr id="thRow"></tr></thead>
+            <tbody id="tbRows"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let uploadedFilesMasterList = []; 
+    let finalExcelData = []; 
+    let maxColorsInSession = 0; 
+    const TARGET_SERIAL_START_INDEX = 8; 
+
+    const standardSizeWeights = {
+        "XXS": 1, "XS": 2, "S": 3, "M": 4, "L": 5, "XL": 6, "XXL": 7, "XXXL": 8, "3XL": 8, "4XL": 9,
+        "ONESIZE": 10, "ONE SIZE": 10, "NS": 10, "OS": 10
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+        refreshSavedSessionsDropdown();
+        manageUnitPriceCheckboxVisibility();
+    });
+
+    function manageUnitPriceCheckboxVisibility() {
+        const currentRef = document.getElementById('accessoryRefSelector').value;
+        const toggleBox = document.getElementById('unitPriceToggleBox');
+        if (currentRef === "HG-RE10180" || currentRef === "HG-RE10145") {
+            toggleBox.style.display = "flex";
+        } else {
+            toggleBox.style.display = "none";
+        }
+    }
+
+    async function handleReferenceChange() {
+        manageUnitPriceCheckboxVisibility();
+        if (uploadedFilesMasterList.length === 0) return;
+        document.getElementById('msg').innerText = "Re-processing loaded files with new reference selection...";
+
+        uploadedFilesMasterList.forEach(fileObj => {
+            if (fileObj.rawRowsStore) {
+                let reExtractedList = processSingleFileRawList(fileObj.rawRowsStore);
+                fileObj.dataRows = JSON.parse(JSON.stringify(reExtractedList));
+                fileObj.originalRows = JSON.parse(JSON.stringify(reExtractedList));
+            }
+        });
+
+        compileFinalMatrixAndRefreshGrid();
+        updatePanelInterfaceState();
+    }
+
+    document.getElementById('fileLoader').addEventListener('change', async function(e) {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+
+        document.getElementById('msg').innerText = "Processing excel files, please wait...";
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            let isDuplicate = uploadedFilesMasterList.some(f => f.fileName === file.name);
+            if (isDuplicate) continue; 
+
+            try {
+                const rawRows = await readExcelFileAsync(file);
+                if (rawRows && rawRows.length > 0) {
+                    let extractedList = processSingleFileRawList(rawRows);
+                    uploadedFilesMasterList.push({
+                        fileName: file.name,
+                        rawRowsStore: rawRows, 
+                        dataRows: JSON.parse(JSON.stringify(extractedList)),      
+                        originalRows: JSON.parse(JSON.stringify(extractedList))  
+                    });
+                }
+            } catch (err) {
+                console.error("Error reading file: " + file.name, err);
+            }
+        }
+
+        compileFinalMatrixAndRefreshGrid();
+        updatePanelInterfaceState();
+        this.value = ''; 
+    });
+
+    function readExcelFileAsync(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array', cellDates: true});
+                    if (!workbook || workbook.SheetNames.length === 0) { resolve([]); return; }
+                    const rawSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    resolve(XLSX.utils.sheet_to_json(rawSheet, {header: 1, defval: ""}));
+                } catch (err) { reject(err); }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    }
+
+    function resetSingleFileRowsOrder(idx) {
+        if (!uploadedFilesMasterList[idx]) return;
+        uploadedFilesMasterList[idx].dataRows = JSON.parse(JSON.stringify(uploadedFilesMasterList[idx].originalRows));
+        compileFinalMatrixAndRefreshGrid();
+    }
+
+    function removeSingleFileEntirely(idx) {
+        if (!uploadedFilesMasterList[idx]) return;
+        uploadedFilesMasterList.splice(idx, 1);
+        compileFinalMatrixAndRefreshGrid();
+        updatePanelInterfaceState();
+    }
+
+    function updatePanelInterfaceState() {
+        const msgEl = document.getElementById('msg');
+        const countSpan = document.getElementById('totalFilesCount');
+        const tagsContainer = document.getElementById('fileTagsList');
+
+        countSpan.innerText = uploadedFilesMasterList.length;
+
+        if (uploadedFilesMasterList.length === 0) {
+            tagsContainer.innerHTML = '<span style="color: #7f8c8d; font-style: italic; font-size: 13px;">No files selected yet.</span>';
+        } else {
+            tagsContainer.innerHTML = "";
+            uploadedFilesMasterList.forEach((fileObj, idx) => {
+                let fileRow = document.createElement('div');
+                fileRow.className = "file-row-item";
+                fileRow.innerHTML = `<div class="file-info-group"><span class="file-tag">📄 F${idx+1}: ${fileObj.fileName}</span></div>`;
+                tagsContainer.appendChild(fileRow);
+            });
+        }
+
+        let hasValidData = uploadedFilesMasterList.some(f => f.dataRows && f.dataRows.length > 0);
+        const currentRef = document.getElementById('accessoryRefSelector').value;
+        
+        if (hasValidData) {
+            document.getElementById('centralSortBtn').style.display = "inline-block";
+            document.getElementById('centralClearBtn').style.display = "inline-block";
+            document.getElementById('downloadExcelBtn').style.display = "inline-block";
+            msgEl.style.color = "#27ae60";
+            msgEl.innerText = `Currently, ${uploadedFilesMasterList.length} file(s) loaded successfully under Code: [${currentRef}].`;
+        } else {
+            document.getElementById('centralSortBtn').style.display = "none";
+            document.getElementById('centralClearBtn').style.display = "none";
+            document.getElementById('downloadExcelBtn').style.display = "none";
+            msgEl.style.color = "#c0392b";
+            msgEl.innerText = `No order records matched the reference code: [${currentRef}] in the uploaded file(s).`;
+        }
+    }
+
+    function saveCurrentSession() {
+        if (uploadedFilesMasterList.length === 0) return;
+        let sessionName = prompt("Enter a unique name to save this current session/reset list:", "");
+        if (!sessionName || sessionName.trim() === "") return;
+        sessionName = sessionName.trim();
+
+        let trimmerHistory = localStorage.getItem('trimmerHistory');
+        let historyObj = trimmerHistory ? JSON.parse(trimmerHistory) : {};
+        historyObj[sessionName] = {
+            savedAt: new Date().toLocaleString(),
+            selectedRef: document.getElementById('accessoryRefSelector').value,
+            masterListData: uploadedFilesMasterList
+        };
+        localStorage.setItem('trimmerHistory', JSON.stringify(historyObj));
+        refreshSavedSessionsDropdown();
+    }
+
+    function refreshSavedSessionsDropdown() {
+        const dropdown = document.getElementById('savedSessionsDropdown');
+        dropdown.innerHTML = '<option value="">-- Select Saved List --</option>';
+        let trimmerHistory = localStorage.getItem('trimmerHistory');
+        if (!trimmerHistory) return;
+        let historyObj = JSON.parse(trimmerHistory);
+        Object.keys(historyObj).forEach(key => {
+            let opt = document.createElement('option'); opt.value = key; opt.innerText = key; dropdown.appendChild(opt);
+        });
+    }
+
+    function loadSelectedSession() {
+        const dropdown = document.getElementById('savedSessionsDropdown');
+        let selectedKey = dropdown.value;
+        if (!selectedKey) return;
+        let historyObj = JSON.parse(localStorage.getItem('trimmerHistory') || "{}");
+        if (historyObj[selectedKey]) {
+            document.getElementById('accessoryRefSelector').value = historyObj[selectedKey].selectedRef || "HG-RE10405";
+            manageUnitPriceCheckboxVisibility();
+            uploadedFilesMasterList = JSON.parse(JSON.stringify(historyObj[selectedKey].masterListData));
+            compileFinalMatrixAndRefreshGrid();
+            updatePanelInterfaceState();
+        }
+    }
+
+    function deleteSelectedSession() {
+        const dropdown = document.getElementById('savedSessionsDropdown');
+        let selectedKey = dropdown.value;
+        if (!selectedKey) return;
+        let historyObj = JSON.parse(localStorage.getItem('trimmerHistory') || "{}");
+        delete historyObj[selectedKey];
+        localStorage.setItem('trimmerHistory', JSON.stringify(historyObj));
+        refreshSavedSessionsDropdown();
+    }
+
+    function compareColorsMixed(a, b) {
+        let cleanA = String(a).toUpperCase().trim(); let cleanB = String(b).toUpperCase().trim();
+        if (cleanA === cleanB) return 0;
+        let hasNumA = /\d/.test(cleanA); let hasNumB = /\d/.test(cleanB);
+        if (hasNumA && !hasNumB) return -1; if (!hasNumA && hasNumB) return 1;
+        if (hasNumA && hasNumB) {
+            let numA = parseInt(cleanA.replace(/^\D+/g, '')) || parseFloat(cleanA) || 0;
+            let numB = parseInt(cleanB.replace(/^\D+/g, '')) || parseFloat(cleanB) || 0;
+            if (numA !== numB) return numA - numB;
+        }
+        return cleanA.localeCompare(cleanB);
+    }
+
+    function isSizeInTargetRange(itemSize, rangeStr) {
+        let cleanItem = String(itemSize).trim().toUpperCase();
+        let cleanRange = String(rangeStr).trim().toUpperCase();
+        
+        if (!cleanRange || cleanRange === "-" || cleanRange === "") return false;
+        if (cleanItem === cleanRange) return true;
+
+        if (cleanRange.includes("-")) {
+            let parts = cleanRange.split("-");
+            let startRange = parts[0].trim();
+            let endRange = parts[1].trim();
+
+            let itemNum = parseInt(cleanItem);
+            let startNum = parseInt(startRange);
+            let endNum = parseInt(endRange);
+
+            if (!isNaN(itemNum) && !isNaN(startNum) && !isNaN(endNum)) {
+                return (itemNum >= startNum && itemNum <= endNum);
+            }
+
+            if (cleanItem.includes("/")) {
+                let subSizes = cleanItem.split("/");
+                return subSizes.some(s => s.trim() === startRange || s.trim() === endRange);
+            }
+            if (startRange.includes("/")) {
+                if (startRange.split("/").some(s => s.trim() === cleanItem)) return true;
+            }
+            if (endRange.includes("/")) {
+                if (endRange.split("/").some(s => s.trim() === cleanItem)) return true;
+            }
+        }
+        
+        return cleanRange.includes(cleanItem);
+    }
+
+    function processSingleFileRawList(rows) {
+        let supplierName = ""; let collectionName = "";
+        const requiredCode = document.getElementById('accessoryRefSelector').value;
+        if (!rows || !Array.isArray(rows)) return [];
+        
+        let collectedRangesInfo = []; 
+
+        for (let r = 0; r < rows.length; r++) {
+            let row = rows[r]; if (!row) continue;
+            
+            if (row.some(cell => cell && String(cell).trim().toUpperCase() === "USE IN SIZES")) {
+                let subclassIdx = row.findIndex(c => c && String(c).trim().toUpperCase() === "SUBCLASS");
+                let ukrIdx = row.findIndex(c => c && String(c).trim().toUpperCase() === "UKRAINIAN PRODUCT NAME");
+                let romIdx = row.findIndex(c => c && String(c).trim().toUpperCase() === "ROMANIAN PRODUCT NAME");
+                let sizeRangeIdx = row.findIndex(c => c && String(c).trim().toUpperCase() === "USE IN SIZES");
+
+                for (let scanR = r + 1; scanR < Math.min(rows.length, r + 6); scanR++) {
+                    let nextRow = rows[scanR];
+                    if (!nextRow) continue;
+                    
+                    let tempSub = subclassIdx !== -1 ? String(nextRow[subclassIdx] || "").trim() : "";
+                    let tempUkr = ukrIdx !== -1 ? String(nextRow[ukrIdx] || "").trim() : "";
+                    let tempRom = romIdx !== -1 ? String(nextRow[romIdx] || "").trim() : "";
+                    let tempRange = sizeRangeIdx !== -1 ? String(nextRow[sizeRangeIdx] || "").trim() : "";
+
+                    if (tempSub || tempUkr || tempRom || tempRange) {
+                        collectedRangesInfo.push({
+                            subclass: tempSub,
+                            ukrainian: tempUkr,
+                            romanian: tempRom,
+                            range: tempRange
+                        });
+                    }
+                }
+            }
+            
+            for (let c = 0; c < row.length; c++) {
+                if (!row[c]) continue;
+                let cellVal = String(row[c]).trim();
+                if (cellVal.toUpperCase().includes("SUPPLIERS NAME") && rows[r+1]) supplierName = String(rows[r+1][c] || "").trim();
+                if (cellVal.toLowerCase() === "collection name" && rows[r+1]) collectionName = String(rows[r+1][c] || "").trim();
+            }
+        }
+
+        let uniqueMap = {}; let uniqueKeysOrder = []; let uniqueColorsInFile = [];
+        
+        for (let i = 0; i < rows.length; i++) {
+            let row = rows[i]; if (!row || row.length < 9) continue;
+            let cColumnVal = String(row[2] || "").trim();
+            let indexCode = String(row[6] || "").trim();
+            let size = String(row[7] || "").trim();
+            let color = String(row[8] || "").trim();
+
+            if (cColumnVal.includes(requiredCode) && indexCode !== "" && size !== "" && color !== "") {
+                if (indexCode.toLowerCase().includes("-t0") || indexCode.toLowerCase().includes("multipack")) continue;
+                if (!uniqueColorsInFile.includes(color)) uniqueColorsInFile.push(color);
+                
+                let key = indexCode + "_" + size + "_" + color;
+                if (!uniqueMap[key]) {
+                    uniqueKeysOrder.push(key);
+                    
+                    let targetedSubclass = "";
+                    let targetedUkrainian = "";
+                    let targetedRomanian = "";
+
+                    if (collectedRangesInfo.length === 1) {
+                        targetedSubclass = collectedRangesInfo[0].subclass;
+                        targetedUkrainian = collectedRangesInfo[0].ukrainian;
+                        targetedRomanian = collectedRangesInfo[0].romanian;
+                    } else if (collectedRangesInfo.length > 1) {
+                        let matchedRangeObj = collectedRangesInfo.find(info => isSizeInTargetRange(size, info.range));
+                        
+                        if (matchedRangeObj) {
+                            targetedSubclass = matchedRangeObj.subclass;
+                            targetedUkrainian = matchedRangeObj.ukrainian;
+                            targetedRomanian = matchedRangeObj.romanian;
+                        } else {
+                            targetedSubclass = collectedRangesInfo[0].subclass;
+                            targetedUkrainian = collectedRangesInfo[0].ukrainian;
+                            targetedRomanian = collectedRangesInfo[0].romanian;
+                        }
+                    }
+                    
+                    uniqueMap[key] = {
+                        index: indexCode, size: size, color: color, qty: 0, mult: 1, total: 0, pincode: "", qr: "",
+                        prices1: Array(10).fill(""), 
+                        prices2: Array(6).fill(""),  
+                        unitPrice: "", 
+                        supplierName: supplierName || "Design Ace Limited [BD]",
+                        ukrainianName: targetedUkrainian, 
+                        romanianName: targetedRomanian, 
+                        collectionName: collectionName, 
+                        subclass: targetedSubclass,
+                        fileColorsList: [], allColorsListSerial: []
+                    };
+                }
+                if (row[9] !== "") uniqueMap[key].qty = parseFloat(row[9]) || uniqueMap[key].qty;
+                if (row[10] !== "") uniqueMap[key].mult = parseFloat(row[10]) || uniqueMap[key].mult;
+                if (row[11] !== "") uniqueMap[key].total = parseFloat(row[11]) || uniqueMap[key].total;
+                uniqueMap[key].pincode = String(row[12] || "").trim();
+                uniqueMap[key].qr = String(row[13] || "").trim();
+                
+                for (let k = 14; k < 24; k++) { 
+                    if (row[k] !== undefined && String(row[k]).trim() !== "") {
+                        uniqueMap[key].prices1[k - 14] = String(row[k]).trim(); 
+                    }
+                }
+                for (let k = 25; k < 31; k++) { 
+                    if (row[k] !== undefined && String(row[k]).trim() !== "") {
+                        uniqueMap[key].prices2[k - 25] = String(row[k]).trim(); 
+                    }
+                }
+                
+                if (row[5] !== undefined && String(row[5]).trim() !== "" && !String(row[5]).toUpperCase().includes("BRAND")) {
+                    uniqueMap[key].unitPrice = String(row[5]).trim();
+                }
+            }
+        }
+
+        uniqueColorsInFile.sort(compareColorsMixed);
+        uniqueKeysOrder.forEach(key => {
+            let item = uniqueMap[key];
+            if (uniqueColorsInFile.length > 1) {
+                let targetColorIndex = uniqueColorsInFile.indexOf(item.color);
+                let layoutColors = Array(uniqueColorsInFile.length).fill("");
+                if (targetColorIndex !== -1) layoutColors[targetColorIndex] = item.color;
+                item.fileColorsList = layoutColors; item.allColorsListSerial = [...uniqueColorsInFile];
+            }
+        });
+
+        let dataRowsList = uniqueKeysOrder.map(key => uniqueMap[key]);
+        dataRowsList.sort((a, b) => compareColorsMixed(a.color, b.color));
+        return dataRowsList;
+    }
+
+    function parseSizeData(sizeStr) {
+        let clean = String(sizeStr).toUpperCase().trim();
+        if (clean.includes('/')) clean = clean.split('/')[0].trim();
+        let braMatch = clean.match(/^(\d+)([A-Z]+)$/);
+        if (braMatch) return { type: 'bra', num: parseInt(braMatch[1]), cup: braMatch[2] };
+        let intVal = parseInt(clean);
+        if (!isNaN(intVal) && String(intVal) === clean) return { type: 'numeric', num: intVal, raw: clean };
+        return { type: 'standard', weight: standardSizeWeights[clean] || 999, raw: clean };
+    }
+
+    function sortRowsArrayLogic(targetRows) {
+        if (!targetRows || !Array.isArray(targetRows)) return;
+        targetRows.sort((a, b) => {
+            let colorCompare = compareColorsMixed(a.color, b.color); if (colorCompare !== 0) return colorCompare;
+            let pA = parseSizeData(a.size); let pB = parseSizeData(b.size);
+            if (pA.type === 'bra' && pB.type === 'bra') return pA.num !== pB.num ? pA.num - pB.num : pA.cup.localeCompare(pB.cup);
+            if (pA.type === 'bra') return -1; if (pB.type === 'bra') return 1;
+            if (pA.type === 'numeric' && pB.type === 'numeric') return pA.num - pB.num;
+            if (pA.type === 'numeric') return -1; if (pB.type === 'numeric') return 1;
+            if (pA.type === 'standard' && pB.type === 'standard') return pA.weight !== pB.weight ? pA.weight - pB.weight : pA.raw.localeCompare(pB.raw);
+            return String(a.size).localeCompare(String(b.size), undefined, {numeric: true});
+        });
+    }
+
+    function executeIndependentSizeSort(fileIndex) {
+        if (!uploadedFilesMasterList[fileIndex]) return;
+        sortRowsArrayLogic(uploadedFilesMasterList[fileIndex].dataRows);
+        compileFinalMatrixAndRefreshGrid();
+    }
+
+    function executeCentralAllSort() { uploadedFilesMasterList.forEach(f => sortRowsArrayLogic(f.dataRows)); compileFinalMatrixAndRefreshGrid(); }
+    function clearCentralAllSorts() { uploadedFilesMasterList.forEach(f => f.dataRows = JSON.parse(JSON.stringify(f.originalRows))); compileFinalMatrixAndRefreshGrid(); }
+    function resetEntirePage() { window.location.reload(); }
+
+    function compileFinalMatrixAndRefreshGrid() {
+        finalExcelData = []; let activeFileCounter = 0; maxColorsInSession = 0;
+        let sortedOrderRowsCount = 0; let blankGapRowsCount = 0;
+
+        const currentRef = document.getElementById('accessoryRefSelector').value;
+        const isUnitPriceEnabled = (currentRef === "HG-RE10180" || currentRef === "HG-RE10145") && document.getElementById('chkShowUnitPrice').checked;
+
+        uploadedFilesMasterList.forEach(fileObj => {
+            if (fileObj.dataRows && fileObj.dataRows.length > 0 && fileObj.dataRows[0].fileColorsList) {
+                maxColorsInSession = Math.max(maxColorsInSession, fileObj.dataRows[0].fileColorsList.length);
+            }
+        });
+
+        let dynamicColumnsLength = Math.max(maxColorsInSession, TARGET_SERIAL_START_INDEX) + maxColorsInSession;
+
+        uploadedFilesMasterList.forEach((fileObj) => {
+            if (!fileObj.dataRows || fileObj.dataRows.length === 0) return;
+            
+            if (activeFileCounter > 0) { 
+                let baseLen = isUnitPriceEnabled ? 36 : 29; 
+                finalExcelData.push(Array(baseLen + dynamicColumnsLength).fill("")); 
+                blankGapRowsCount++; 
+            }
+
+            fileObj.dataRows.forEach(dataObj => {
+                let matrixRow = ["", "", "", "", "", fileObj.fileName, dataObj.supplierName, dataObj.index, dataObj.size, dataObj.color, dataObj.qty, dataObj.mult, dataObj.total, dataObj.pincode, dataObj.qr];
+                
+                for (let k = 0; k < 10; k++) {
+                    matrixRow.push(dataObj.prices1[k] || "");
+                }
+                
+                if (isUnitPriceEnabled) {
+                    matrixRow.push(dataObj.unitPrice || "");
+                    for (let k = 0; k < 6; k++) {
+                        matrixRow.push(dataObj.prices2[k] || "");
+                    }
+                }
+
+                matrixRow.push(dataObj.ukrainianName, dataObj.romanianName, dataObj.collectionName, dataObj.subclass);
+
+                let dynamicSectionData = Array(dynamicColumnsLength).fill("");
+                let currentColorsList = dataObj.fileColorsList || [];
+                for(let cIdx = 0; cIdx < currentColorsList.length; cIdx++) dynamicSectionData[cIdx] = currentColorsList[cIdx] || "";
+                let serialColorsList = dataObj.allColorsListSerial || [];
+                for(let sIdx = 0; sIdx < serialColorsList.length; sIdx++) dynamicSectionData[TARGET_SERIAL_START_INDEX + sIdx] = serialColorsList[sIdx] || "";
+                dynamicSectionData.forEach(cellVal => matrixRow.push(cellVal));
+                
+                finalExcelData.push(matrixRow);
+                sortedOrderRowsCount++;
+            });
+            activeFileCounter++;
+        });
+
+        document.getElementById('lblTotalRows').innerText = sortedOrderRowsCount + blankGapRowsCount;
+        document.getElementById('lblSortedRows').innerText = sortedOrderRowsCount;
+        document.getElementById('lblBlankRows').innerText = blankGapRowsCount;
+        showPreviewTable();
+    }
+
+    function showPreviewTable() {
+        const tHead = document.getElementById('thRow'); const tBody = document.getElementById('tbRows');
+        tHead.innerHTML = ""; tBody.innerHTML = ""; if (finalExcelData.length === 0) return;
+
+        const currentRef = document.getElementById('accessoryRefSelector').value;
+        const isUnitPriceEnabled = (currentRef === "HG-RE10180" || currentRef === "HG-RE10145") && document.getElementById('chkShowUnitPrice').checked;
+
+        let columnHeaders = [
+            "Action Group", "File Source Reference", "Supplier Name", "Index Code", "Size", "Color", "Qty", "Mult", "Total Qty", "Pincode / Barcode", "QR Link", 
+            "PLN", "EUR", "GBP", "CZK", "UAH", "RON", "HUF", "MKD", "RSD", "BAM"
+        ];
+
+        if (isUnitPriceEnabled) {
+            columnHeaders.push("Unit Price", "PLN_2", "EUR_2", "HUF_2", "MKD_2", "RSD_2", "BAM_2");
+        }
+
+        columnHeaders.push(
+            "Ukrainian Name", "Romanian Name", "Collection", "Subclass"
+        );
+        
+        let displayMaxStairSlots = Math.max(maxColorsInSession, TARGET_SERIAL_START_INDEX);
+        for (let k = 1; k <= displayMaxStairSlots; k++) columnHeaders.push(k <= maxColorsInSession ? `Stair Slot ${k}` : `Gap ${k - maxColorsInSession}`);
+        for (let k = 1; k <= maxColorsInSession; k++) columnHeaders.push(`Color Serial ${k}`);
+
+        columnHeaders.forEach(h => { let th = document.createElement('th'); th.innerText = h; tHead.appendChild(th); });
+
+        let currentFileIndex = 0; let isFirstRowOfBlock = true; let validFileIndices = [];
+        uploadedFilesMasterList.forEach((f, idx) => { if(f.dataRows && f.dataRows.length > 0) validFileIndices.push(idx); });
+
+        finalExcelData.forEach((row) => {
+            let tr = document.createElement('tr');
+            if (row.every(cell => cell === "")) {
+                tr.className = "blank-row-indicator";
+                let td = document.createElement('td'); td.colSpan = columnHeaders.length;
+                currentFileIndex++; isFirstRowOfBlock = true;
+                let realIdx = validFileIndices[currentFileIndex];
+                td.innerHTML = `--- <b>NEXT FILE:</b> ${uploadedFilesMasterList[realIdx] ? uploadedFilesMasterList[realIdx].fileName : ""} ---`;
+                td.style.textAlign = "center"; tr.appendChild(td);
+            } else {
+                let actionTd = document.createElement('td'); actionTd.className = "action-cell";
+                if (isFirstRowOfBlock) {
+                    let realIdx = validFileIndices[currentFileIndex];
+                    let btnGroup = document.createElement('div');
+                    btnGroup.className = "action-btn-group";
+
+                    let sortBtn = document.createElement('button'); 
+                    sortBtn.className = "btn-table-sort"; 
+                    sortBtn.innerHTML = `↕ Sort F${currentFileIndex + 1}`;
+                    sortBtn.onclick = function() { executeIndependentSizeSort(realIdx); }; 
+
+                    let clearBtn = document.createElement('button'); 
+                    clearBtn.className = "btn-table-clear"; 
+                    clearBtn.innerHTML = `🔄 Clear`;
+                    clearBtn.onclick = function() { resetSingleFileRowsOrder(realIdx); }; 
+
+                    let removeBtn = document.createElement('button'); 
+                    removeBtn.className = "btn-table-remove"; 
+                    removeBtn.innerHTML = `❌ Remove`;
+                    removeBtn.onclick = function() { removeSingleFileEntirely(realIdx); }; 
+
+                    btnGroup.appendChild(sortBtn);
+                    btnGroup.appendChild(clearBtn);
+                    btnGroup.appendChild(removeBtn);
+                    actionTd.appendChild(btnGroup);
+                    isFirstRowOfBlock = false;
+                }
+                tr.appendChild(actionTd);
+                
+                let actualCellsToRender = row.slice(5);
+                actualCellsToRender.forEach((cell, idx) => {
+                    let td = document.createElement('td');
+                    if (idx === 9 && cell) td.innerHTML = `<a href="${cell}" target="_blank">QR Link</a>`;
+                    else td.innerText = cell;
+                    tr.appendChild(td);
+                });
+            }
+            tBody.appendChild(tr);
+        });
+    }
+
+    function downloadCombinedExcel() {
+        if (finalExcelData.length === 0) return;
+        const currentRef = document.getElementById('accessoryRefSelector').value;
+        let customName = prompt("Please enter a name for the output Excel file:", `Bulk_Trimmings_Output_${currentRef}`);
+        if (customName === null) return;
+        customName = customName.trim() || `Bulk_Trimmings_Output_${currentRef}`;
+        if (!customName.toLowerCase().endsWith(".xls") && !customName.toLowerCase().endsWith(".xlsx")) customName += ".xls";
+
+        let exportData = finalExcelData.map(r => r.slice(5));
+        const worksheet = XLSX.utils.aoa_to_sheet(exportData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Combined Orders");
+        XLSX.writeFile(workbook, customName);
+    }
+</script>
+</body>
+</html>
