@@ -435,7 +435,6 @@
     window.addEventListener('DOMContentLoaded', () => {
         refreshSavedSessionsDropdown();
         manageUnitPriceCheckboxVisibility();
-        // Initial compile to ensure table renders with default checked state
         compileFinalMatrixAndRefreshGrid();
     });
 
@@ -869,10 +868,11 @@
                     }
                 }
 
-                matrixRow.push(fileObj.customLine1 || "");
-                matrixRow.push(fileObj.customLine2 || "");
-
+                // C1: Add names and subclass
                 matrixRow.push(dataObj.ukrainianName, dataObj.romanianName, dataObj.collectionName, dataObj.subclass);
+                
+                // C2: Add Oekotex and Institute AFTER Subclass
+                matrixRow.push(fileObj.customLine1 || "", fileObj.customLine2 || "");
 
                 let dynamicSectionData = Array(dynamicColumnsLength).fill("");
                 let currentColorsList = dataObj.fileColorsList || [];
@@ -910,11 +910,10 @@
             columnHeaders.push("U.P. PLN", "U.P. €", "U.P. Ft", "U.P. KZT", "U.P. ГРХ", "U.P. UZS", "U.P. LEI", "U.P. KM", "U.P. CZK", "U.P. BYN", "U.P. RSD", "U.P. ALL");
         }
 
+        // Headers: Names first
+        columnHeaders.push("Ukrainian Name", "Romanian Name", "Collection", "Subclass");
+        // Headers: Custom fields after Subclass
         columnHeaders.push("Oekotex Number", "Institute");
-
-        columnHeaders.push(
-            "Ukrainian Name", "Romanian Name", "Collection", "Subclass"
-        );
         
         let displayMaxStairSlots = Math.max(maxColorsInSession, TARGET_SERIAL_START_INDEX);
         for (let k = 1; k <= displayMaxStairSlots; k++) columnHeaders.push(k <= maxColorsInSession ? `Stair Slot ${k}` : `Gap ${k - maxColorsInSession}`);
