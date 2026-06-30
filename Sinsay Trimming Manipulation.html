@@ -43,7 +43,7 @@
         
         .dashboard-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: 1fr 1.2fr 1fr;
             gap: 15px;
             margin: 20px 0 10px 0;
         }
@@ -61,6 +61,24 @@
             padding: 15px;
             border-radius: 4px;
         }
+        .matrix-content-wrapper {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            margin-top: 8px;
+        }
+        .matrix-left {
+            flex: 1;
+        }
+        .matrix-right {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.6);
+            padding: 8px;
+            border-radius: 4px;
+            border-left: 3px solid #9b59b6;
+            max-height: 100px;
+            overflow-y: auto;
+        }
         .history-manager {
             background-color: #fcf3cf;
             border-left: 5px solid #f1c40f;
@@ -71,7 +89,7 @@
             font-size: 15px;
             font-weight: bold;
             color: #2c3e50;
-            margin: 0 0 8px 0;
+            margin: 0 0 4px 0;
         }
         
         .file-tags-container {
@@ -335,12 +353,34 @@
             border: 1px dashed #bdc3c7;
             border-radius: 4px;
         }
-        .custom-block-inputs input {
+        .custom-block-inputs input[type="text"] {
             width: 95%;
             padding: 4px;
             font-size: 11px;
             border: 1px solid #ccc;
             border-radius: 3px;
+        }
+        .enable-checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            font-weight: bold;
+            color: #e67e22;
+            margin-bottom: 2px;
+        }
+        .enable-checkbox-container input {
+            cursor: pointer;
+            width: 13px;
+            height: 13px;
+        }
+        .oeko-file-item {
+            display: block;
+            margin-bottom: 2px;
+            font-size: 11px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
     </style>
 </head>
@@ -370,10 +410,20 @@
 
         <div class="matrix-summary">
             <div class="counter-title">📈 Total Matrix Live Analytics:</div>
-            <div style="font-size: 13px; color: #2c3e50; line-height: 1.6;">
-                • Total Output Rows: <span id="lblTotalRows" style="font-weight: bold; color: #27ae60;">0</span><br>
-                • Sorted Order Rows: <span id="lblSortedRows" style="font-weight: bold; color: #2980b9;">0</span><br>
-                • Non-Sorted / Blank Rows: <span id="lblBlankRows" style="font-weight: bold; color: #c0392b;">0</span>
+            <div class="matrix-content-wrapper">
+                <div class="matrix-left" style="font-size: 13px; color: #2c3e50; line-height: 1.6;">
+                    • Total Output Rows: <span id="lblTotalRows" style="font-weight: bold; color: #27ae60;">0</span><br>
+                    • Sorted Order Rows: <span id="lblSortedRows" style="font-weight: bold; color: #2980b9;">0</span><br>
+                    • Non-Sorted / Blank Rows: <span id="lblBlankRows" style="font-weight: bold; color: #c0392b;">0</span>
+                </div>
+                <div class="matrix-right" style="font-size: 12px; color: #2c3e50;">
+                    <div style="font-weight: bold; margin-bottom: 5px; color: #9b59b6;">
+                        Oeko-tex (<span id="lblOekotexCount">0</span>):
+                    </div>
+                    <div id="lblOekotexFiles" style="font-weight: normal; max-height: 75px; overflow-y: auto;">
+                        <span style="color: #c0392b;">None</span>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -426,6 +476,7 @@
     let finalExcelData = []; 
     let maxColorsInSession = 0; 
     const TARGET_SERIAL_START_INDEX = 8; 
+    let currentOekoMatchedFileNames = []; 
 
     const standardSizeWeights = {
         "XXS": 1, "XS": 2, "S": 3, "M": 4, "L": 5, "XL": 6, "XXL": 7, "XXXL": 8, "3XL": 8, "4XL": 9,
@@ -486,7 +537,8 @@
                         dataRows: JSON.parse(JSON.stringify(extractedList)),      
                         originalRows: JSON.parse(JSON.stringify(extractedList)),
                         customLine1: "",
-                        customLine2: ""
+                        customLine2: "",
+                        forceEnableOekoInputs: false 
                     });
                 }
             } catch (err) {
@@ -630,6 +682,7 @@
         return cleanA.localeCompare(cleanB);
     }
 
+    // Helper function to check size matches standard format ranges
     function isSizeInTargetRange(itemSize, rangeStr) {
         let cleanItem = String(itemSize).trim().toUpperCase();
         let cleanRange = String(rangeStr).trim().toUpperCase();
@@ -830,6 +883,45 @@
     function clearCentralAllSorts() { uploadedFilesMasterList.forEach(f => f.dataRows = JSON.parse(JSON.stringify(f.originalRows))); compileFinalMatrixAndRefreshGrid(); }
     function resetEntirePage() { window.location.reload(); }
 
+    function updateOekotexLiveAnalytics() {
+        const targetCodes = ["HG-SI1444", "PC-SI8562", "PC-SI8561"];
+        currentOekoMatchedFileNames = [];
+
+        uploadedFilesMasterList.forEach(fileObj => {
+            if (fileObj.rawRowsStore) {
+                let found = fileObj.rawRowsStore.some(row => {
+                    if (!row) return false;
+                    return row.some(cell => {
+                        if (!cell) return false;
+                        let cellStr = String(cell).toUpperCase();
+                        return targetCodes.some(code => cellStr.includes(code));
+                    });
+                });
+                if (found) {
+                    currentOekoMatchedFileNames.push(fileObj.fileName);
+                }
+            }
+        });
+
+        const countSpan = document.getElementById('lblOekotexCount');
+        const fileContainer = document.getElementById('lblOekotexFiles');
+        
+        countSpan.innerText = currentOekoMatchedFileNames.length;
+
+        if (currentOekoMatchedFileNames.length > 0) {
+            fileContainer.innerHTML = "";
+            currentOekoMatchedFileNames.forEach(name => {
+                let fileDiv = document.createElement('div');
+                fileDiv.className = "oeko-file-item";
+                fileDiv.style.color = "#27ae60";
+                fileDiv.innerText = "• " + name;
+                fileContainer.appendChild(fileDiv);
+            });
+        } else {
+            fileContainer.innerHTML = '<span style="color: #c0392b;">None</span>';
+        }
+    }
+
     function compileFinalMatrixAndRefreshGrid() {
         finalExcelData = []; let activeFileCounter = 0; maxColorsInSession = 0;
         let sortedOrderRowsCount = 0; let blankGapRowsCount = 0;
@@ -844,6 +936,8 @@
         });
 
         let dynamicColumnsLength = Math.max(maxColorsInSession, TARGET_SERIAL_START_INDEX) + maxColorsInSession;
+
+        updateOekotexLiveAnalytics();
 
         uploadedFilesMasterList.forEach((fileObj) => {
             if (!fileObj.dataRows || fileObj.dataRows.length === 0) return;
@@ -868,10 +962,7 @@
                     }
                 }
 
-                // C1: Add names and subclass
                 matrixRow.push(dataObj.ukrainianName, dataObj.romanianName, dataObj.collectionName, dataObj.subclass);
-                
-                // C2: Add Oekotex and Institute AFTER Subclass
                 matrixRow.push(fileObj.customLine1 || "", fileObj.customLine2 || "");
 
                 let dynamicSectionData = Array(dynamicColumnsLength).fill("");
@@ -890,6 +981,7 @@
         document.getElementById('lblTotalRows').innerText = sortedOrderRowsCount + blankGapRowsCount;
         document.getElementById('lblSortedRows').innerText = sortedOrderRowsCount;
         document.getElementById('lblBlankRows').innerText = blankGapRowsCount;
+        
         showPreviewTable();
     }
 
@@ -910,9 +1002,7 @@
             columnHeaders.push("U.P. PLN", "U.P. €", "U.P. Ft", "U.P. KZT", "U.P. ГРХ", "U.P. UZS", "U.P. LEI", "U.P. KM", "U.P. CZK", "U.P. BYN", "U.P. RSD", "U.P. ALL");
         }
 
-        // Headers: Names first
         columnHeaders.push("Ukrainian Name", "Romanian Name", "Collection", "Subclass");
-        // Headers: Custom fields after Subclass
         columnHeaders.push("Oekotex Number", "Institute");
         
         let displayMaxStairSlots = Math.max(maxColorsInSession, TARGET_SERIAL_START_INDEX);
@@ -965,6 +1055,9 @@
                     let customInpBox = document.createElement('div');
                     customInpBox.className = "custom-block-inputs";
                     
+                    let isOekoMatched = currentOekoMatchedFileNames.includes(fileObj.fileName);
+                    
+                    // Input Text Elements for Oeko and Institute
                     let inp1 = document.createElement('input');
                     inp1.type = "text";
                     inp1.placeholder = "Oekotex Number...";
@@ -984,10 +1077,40 @@
                         compileFinalMatrixAndRefreshGrid();
                     };
 
-                    customInpBox.appendChild(inp1);
-                    customInpBox.appendChild(inp2);
-                    actionTd.appendChild(customInpBox);
+                    if (!isOekoMatched) {
+                        // Show ONLY Checkbox at first if not in Oeko list
+                        let chkContainer = document.createElement('label');
+                        chkContainer.className = "enable-checkbox-container";
+                        
+                        let enableChk = document.createElement('input');
+                        enableChk.type = "checkbox";
+                        enableChk.checked = fileObj.forceEnableOekoInputs || false;
+                        enableChk.onchange = function() {
+                            fileObj.forceEnableOekoInputs = this.checked;
+                            if(!this.checked) {
+                                // Clear input values if unchecked
+                                fileObj.customLine1 = "";
+                                fileObj.customLine2 = "";
+                            }
+                            compileFinalMatrixAndRefreshGrid();
+                        };
+                        
+                        chkContainer.appendChild(enableChk);
+                        chkContainer.appendChild(document.createTextNode(" Enable Oeko Manual Entry"));
+                        customInpBox.appendChild(chkContainer);
 
+                        // Render the inputs inside DOM ONLY when check box is selected (image_4a6135.png behavior)
+                        if (fileObj.forceEnableOekoInputs) {
+                            customInpBox.appendChild(inp1);
+                            customInpBox.appendChild(inp2);
+                        }
+                    } else {
+                        // On Oeko list -> Render inputs directly without checkbox
+                        customInpBox.appendChild(inp1);
+                        customInpBox.appendChild(inp2);
+                    }
+
+                    actionTd.appendChild(customInpBox);
                     isFirstRowOfBlock = false;
                 }
                 tr.appendChild(actionTd);
